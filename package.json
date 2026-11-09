@@ -1,0 +1,23 @@
+{
+  "name": "same-difference",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Party game: everyone sees everyone else's character but their own. Each round's characters share a hidden trait.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check-data": "node scripts/check-data.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}

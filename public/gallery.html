@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Character Gallery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main id="app" class="gallery">
+    <div class="topbar">
+      <h2 class="display">🎭 Character gallery</h2>
+      <span class="muted" id="count"></span>
+      <span class="spacer"></span>
+      <a class="btn ghost small" href="/">Back to game</a>
+    </div>
+    <div class="panel stack" style="margin-bottom:16px">
+      <input type="text" id="q" placeholder="Search name, show, or trait (e.g. “cape”, “Marvel”)">
+      <div class="chips" id="cats"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </main>
+  <script>
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let all = [], cat = '';
+    fetch('/api/gallery').then((r) => r.json()).then((d) => {
+      all = d;
+      const cats = [...new Map(d.map((c) => [c.cat, c.catLabel])).entries()];
+      const box = document.getElementById('cats');
+      box.innerHTML = `<label class="chip on" data-c="">All</label>` + cats.map(([id, l]) => `<label class="chip" data-c="${id}">${esc(l)}</label>`).join('');
+      box.onclick = (e) => { const t = e.target.closest('[data-c]'); if (!t) return; cat = t.dataset.c; box.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === t)); draw(); };
+      draw();
+    });
+    document.getElementById('q').oninput = draw;
+    function draw() {
+      const q = document.getElementById('q').value.toLowerCase().trim();
+      const list = all.filter((c) => (!cat || c.cat === cat) && (!q || [c.name, c.from, ...c.traits].join(' ').toLowerCase().includes(q)));
+      document.getElementById('count').textContent = `${list.length} characters · ${all.filter((c) => !c.img).length} without picture`;
+      document.getElementById('cards').innerHTML = list.map((c) => `
+        <article class="card">
+          <div class="pic">${c.img ? `<img src="${esc(c.img)}" loading="lazy" referrerpolicy="no-referrer" alt="">` : `<div class="ph" style="background:#8a7fb0">?</div>`}</div>
+          <div class="meta"><div class="name">${esc(c.name)}</div><div class="from">${esc(c.from)}</div></div>
+          <div class="traits">${c.traits.map(esc).join(' · ')}</div>
+        </article>`).join('');
+    }
+  </script>
+</body>
+</html>
