@@ -435,22 +435,39 @@ const RAW = [
 
 const slug = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-const CHARACTERS = RAW.map(([name, cat, from, wiki, traits, aliases, extra]) => ({
-  id: slug(`${cat}-${name}`),
-  name,
-  cat,
-  from,
-  wiki,
-  traits: traits.split(/\s+/).filter(Boolean),
-  aliases: (aliases || '').split('|').map((a) => a.trim()).filter(Boolean),
-  ...(extra || {}),
-}));
+const ES = require('./characters.es');
 
-// Sanity check at load time: unknown traits are a typo.
+const splitList = (s) => (s || '').split('|').map((a) => a.trim()).filter(Boolean);
+
+const CHARACTERS = RAW.map(([name, cat, from, wiki, traits, aliases, extra]) => {
+  const es = splitList(ES.NAMES[name]);
+  return {
+    id: slug(`${cat}-${name}`),
+    name,
+    nameEs: es[0] || name,
+    cat,
+    from,
+    fromEs: ES.FROM[from] || from,
+    wiki,
+    traits: traits.split(/\s+/).filter(Boolean),
+    // Spanish names are accepted as guesses no matter which language you play in.
+    aliases: [...splitList(aliases), ...es],
+    ...(extra || {}),
+  };
+});
+
+// Sanity checks at load time: unknown traits / translation keys are typos.
 for (const c of CHARACTERS) {
   for (const t of c.traits) if (!TRAITS[t]) throw new Error(`Unknown trait "${t}" on ${c.name}`);
 }
+const names = new Set(RAW.map((r) => r[0]));
+for (const n of Object.keys(ES.NAMES)) if (!names.has(n)) throw new Error(`characters.es.js: no character named "${n}"`);
+for (const t of Object.keys(TRAITS)) if (!ES.TRAITS[t]) throw new Error(`characters.es.js: missing Spanish label for trait "${t}"`);
+
+// Labels in every supported language: { en, es }.
+const TRAIT_LABELS = Object.fromEntries(Object.entries(TRAITS).map(([id, en]) => [id, { en, es: ES.TRAITS[id] }]));
+const CATEGORY_LABELS = Object.fromEntries(Object.entries(CATEGORIES).map(([id, en]) => [id, { en, es: ES.CATEGORIES[id] || en }]));
 
 const BY_ID = new Map(CHARACTERS.map((c) => [c.id, c]));
 
-module.exports = { CHARACTERS, TRAITS, CATEGORIES, BY_ID };
+module.exports = { CHARACTERS, TRAITS, CATEGORIES, TRAIT_LABELS, CATEGORY_LABELS, BY_ID };

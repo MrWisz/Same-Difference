@@ -10,40 +10,56 @@
 <body>
   <main id="app" class="gallery">
     <div class="topbar">
-      <h2 class="display">🎭 Character gallery</h2>
+      <h2 class="display">🎭 <span id="title"></span></h2>
       <span class="muted" id="count"></span>
       <span class="spacer"></span>
-      <a class="btn ghost small" href="/">Back to game</a>
+      <span id="langSlot"></span>
+      <a class="btn ghost small" href="/" id="back"></a>
     </div>
     <div class="panel stack" style="margin-bottom:16px">
-      <input type="text" id="q" placeholder="Search name, show, or trait (e.g. “cape”, “Marvel”)">
+      <input type="text" id="q">
       <div class="chips" id="cats"></div>
     </div>
     <div class="cards" id="cards"></div>
   </main>
+  <script src="/i18n.js"></script>
   <script>
+    const { t, L } = window.i18n;
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     let all = [], cat = '';
-    fetch('/api/gallery').then((r) => r.json()).then((d) => {
-      all = d;
-      const cats = [...new Map(d.map((c) => [c.cat, c.catLabel])).entries()];
+
+    function chrome() {
+      document.title = t('gallery.title');
+      document.getElementById('title').textContent = t('gallery.title');
+      document.getElementById('back').textContent = t('gallery.back');
+      document.getElementById('q').placeholder = t('gallery.search');
+      document.getElementById('langSlot').innerHTML = window.i18n.picker();
+      document.getElementById('langPick').onchange = (e) => window.i18n.setLang(e.target.value);
+      const cats = [...new Map(all.map((c) => [c.cat, c.catLabel])).entries()];
       const box = document.getElementById('cats');
-      box.innerHTML = `<label class="chip on" data-c="">All</label>` + cats.map(([id, l]) => `<label class="chip" data-c="${id}">${esc(l)}</label>`).join('');
-      box.onclick = (e) => { const t = e.target.closest('[data-c]'); if (!t) return; cat = t.dataset.c; box.querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === t)); draw(); };
-      draw();
-    });
-    document.getElementById('q').oninput = draw;
+      box.innerHTML = `<label class="chip ${cat ? '' : 'on'}" data-c="">${t('gallery.all')}</label>` +
+        cats.map(([id, l]) => `<label class="chip ${cat === id ? 'on' : ''}" data-c="${id}">${esc(L(l))}</label>`).join('');
+      box.onclick = (e) => { const el = e.target.closest('[data-c]'); if (!el) return; cat = el.dataset.c; chrome(); draw(); };
+    }
+
     function draw() {
       const q = document.getElementById('q').value.toLowerCase().trim();
-      const list = all.filter((c) => (!cat || c.cat === cat) && (!q || [c.name, c.from, ...c.traits].join(' ').toLowerCase().includes(q)));
-      document.getElementById('count').textContent = `${list.length} characters · ${all.filter((c) => !c.img).length} without picture`;
+      // Search matches both languages.
+      const text = (c) => [c.name.en, c.name.es, c.from.en, c.from.es, ...c.traits.flatMap((x) => [x.en, x.es])].join(' ').toLowerCase();
+      const list = all.filter((c) => (!cat || c.cat === cat) && (!q || text(c).includes(q)));
+      document.getElementById('count').textContent = t('gallery.count', { n: list.length, missing: all.filter((c) => !c.img).length });
       document.getElementById('cards').innerHTML = list.map((c) => `
         <article class="card">
           <div class="pic">${c.img ? `<img src="${esc(c.img)}" loading="lazy" referrerpolicy="no-referrer" alt="">` : `<div class="ph" style="background:#8a7fb0">?</div>`}</div>
-          <div class="meta"><div class="name">${esc(c.name)}</div><div class="from">${esc(c.from)}</div></div>
-          <div class="traits">${c.traits.map(esc).join(' · ')}</div>
+          <div class="meta"><div class="name">${esc(L(c.name))}</div><div class="from">${esc(L(c.from))}</div></div>
+          <div class="traits">${c.traits.map((x) => esc(L(x))).join(' · ')}</div>
         </article>`).join('');
     }
+
+    window.i18n.onChange(() => { chrome(); draw(); });
+    document.getElementById('q').oninput = draw;
+    chrome();
+    fetch('/api/gallery').then((r) => r.json()).then((d) => { all = d; chrome(); draw(); });
   </script>
 </body>
 </html>

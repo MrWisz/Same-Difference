@@ -5,7 +5,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 
-const { CHARACTERS, TRAITS, CATEGORIES, BY_ID } = require('./data/characters');
+const { CHARACTERS, TRAITS, CATEGORIES, TRAIT_LABELS, CATEGORY_LABELS, BY_ID } = require('./data/characters');
 const images = require('./lib/images');
 const { isCorrectGuess } = require('./lib/match');
 
@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/meta', (_req, res) => {
   res.json({
-    categories: Object.entries(CATEGORIES).map(([id, label]) => ({ id, label, count: CHARACTERS.filter((c) => c.cat === id).length })),
+    categories: Object.keys(CATEGORIES).map((id) => ({ id, label: CATEGORY_LABELS[id], count: CHARACTERS.filter((c) => c.cat === id).length })),
     traitCount: Object.keys(TRAITS).length,
     characterCount: CHARACTERS.length,
     lanUrls: lanUrls(),
@@ -33,7 +33,7 @@ app.get('/api/qr', async (req, res) => {
 
 // Browse every character + picture (handy for checking the data).
 app.get('/api/gallery', (_req, res) => {
-  res.json(CHARACTERS.map((c) => ({ ...publicChar(c), traits: c.traits.map((t) => TRAITS[t]) })));
+  res.json(CHARACTERS.map((c) => ({ ...publicChar(c), traits: c.traits.map((t) => TRAIT_LABELS[t]) })));
 });
 
 function lanUrls() {
@@ -44,7 +44,12 @@ function lanUrls() {
   return out;
 }
 
-const publicChar = (c) => c && ({ id: c.id, name: c.name, from: c.from, cat: c.cat, catLabel: CATEGORIES[c.cat], img: images.imageFor(c) });
+// Display text is sent in every language ({ en, es }); each client shows its own.
+const publicChar = (c) => c && ({
+  id: c.id, cat: c.cat, img: images.imageFor(c),
+  name: { en: c.name, es: c.nameEs }, from: { en: c.from, es: c.fromEs }, catLabel: CATEGORY_LABELS[c.cat],
+});
+const charName = (id) => { const c = BY_ID.get(id); return c ? { en: c.name, es: c.nameEs } : '???'; };
 
 // ───────────────────────── rooms ─────────────────────────
 
@@ -83,6 +88,7 @@ function createRoom(hostPid) {
   return room;
 }
 
+// Log entries are { type, key, vars } — the client turns them into text in the player's language.
 function addLog(room, entry) {
   room.log.push({ id: Math.random().toString(36).slice(2), at: Date.now(), ...entry });
   if (room.log.length > 120) room.log.splice(0, room.log.length - 120);
@@ -117,16 +123,16 @@ function drawCharacter(room) {
 
 function startRound(room) {
   const players = activePlayers(room);
-  if (players.length < 2) return 'Need at least 2 players.';
-  if (!room.settings.categories.length) return 'Pick at least one category.';
+  if (players.length < 2) return 'needPlayers';
+  if (!room.settings.categories.length) return 'needCategory';
   const trait = pickTrait(room, players.length);
-  if (!trait) return 'Not enough characters in the selected categories for this many players. Turn on more categories.';
+  if (!trait) return 'notEnoughChars';
   room.recentTraits = [trait, ...room.recentTraits].slice(0, 12);
   room.roundNo += 1;
   room.phase = 'round';
   room.round = { trait, used: new Set(), cards: new Map() };
   for (const p of shuffle(players)) dealTo(room, p.pid);
-  addLog(room, { type: 'system', text: `Round ${room.roundNo} started. Everyone's character has something in common…` });
+  addLog(room, { type: 'system', key: 'roundStarted', vars: { n: room.roundNo } });
   return null;
 }
 
@@ -135,7 +141,7 @@ function dealTo(room, pid) {
   room.round.cards.set(pid, { charId: c ? c.id : null, state: 'playing', points: 0, lastGuess: null, guesses: 0, skips: 0 });
 }
 
-function solve(room, pid, how) {
+function solve(room, pid, acceptedBy) {
   const r = room.round;
   const card = r.cards.get(pid);
   const solvedBefore = [...r.cards.values()].filter((c) => c.state === 'solved').length;
@@ -143,8 +149,9 @@ function solve(room, pid, how) {
   card.points = Math.max(1, r.cards.size - solvedBefore);
   const p = room.players.get(pid);
   p.score += card.points;
-  const ch = BY_ID.get(card.charId);
-  addLog(room, { type: 'good', text: `${p.name} ${how} — they're ${ch ? ch.name : '???'}! +${card.points}` });
+  addLog(room, acceptedBy
+    ? { type: 'good', key: 'accepted', vars: { name: p.name, guess: card.lastGuess, by: acceptedBy, char: charName(card.charId), points: card.points } }
+    : { type: 'good', key: 'solved', vars: { name: p.name, char: charName(card.charId), points: card.points } });
   maybeFinish(room);
 }
 
@@ -156,7 +163,7 @@ function maybeFinish(room) {
 function endRound(room) {
   if (room.phase !== 'round') return;
   room.phase = 'reveal';
-  addLog(room, { type: 'system', text: `Round over! The link was: ${TRAITS[room.round.trait]}.` });
+  addLog(room, { type: 'system', key: 'roundOver', vars: { trait: TRAIT_LABELS[room.round.trait] } });
 }
 
 // What a given player is allowed to see.
@@ -175,7 +182,7 @@ function viewFor(room, pid) {
       .sort((a, b) => a.joinedAt - b.joinedAt)
       .map((p) => ({ pid: p.pid, name: p.name, score: p.score, online: p.sockets.size > 0 })),
     round: r && {
-      trait: showTrait ? TRAITS[r.trait] : null,
+      trait: showTrait ? TRAIT_LABELS[r.trait] : null,
       cards: [...r.cards.entries()].map(([cpid, card]) => {
         const mine = cpid === pid;
         const visible = !mine || card.state !== 'playing' || revealAll;
@@ -185,7 +192,7 @@ function viewFor(room, pid) {
           points: card.points,
           lastGuess: card.lastGuess,
           guesses: card.guesses,
-          character: visible ? publicChar(BY_ID.get(card.charId)) || { name: '(ran out of characters)', from: '' } : null,
+          character: visible ? publicChar(BY_ID.get(card.charId)) || { missing: true } : null,
         };
       }),
     },
@@ -206,7 +213,7 @@ io.on('connection', (socket) => {
   let room = null;
   let pid = null;
 
-  const fail = (msg) => socket.emit('toast', { kind: 'error', text: msg });
+  const fail = (key, vars) => socket.emit('toast', { kind: 'error', key, vars });
   const me = () => room && room.players.get(pid);
   const isHost = () => room && room.hostPid === pid;
 
@@ -215,10 +222,10 @@ io.on('connection', (socket) => {
     pid = clean(playerId, 40) || Math.random().toString(36).slice(2);
     let p = room.players.get(pid);
     if (!p) {
-      if (room.players.size >= 12) return fail('Room is full (12 players max).');
+      if (room.players.size >= 12) return fail('roomFull');
       p = { pid, name, score: 0, sockets: new Set(), joinedAt: Date.now() };
       room.players.set(pid, p);
-      addLog(room, { type: 'system', text: `${name} joined.` });
+      addLog(room, { type: 'system', key: 'joined', vars: { name } });
       if (room.phase === 'round') dealTo(room, pid); // late joiner gets a card too
     } else if (name) {
       p.name = name;
@@ -231,7 +238,7 @@ io.on('connection', (socket) => {
 
   socket.on('create', ({ name, pid: playerId } = {}) => {
     name = clean(name, 20);
-    if (!name) return fail('Enter your name first.');
+    if (!name) return fail('enterName');
     const r = createRoom(clean(playerId, 40));
     attach(r, playerId, name);
     r.hostPid = pid;
@@ -239,9 +246,9 @@ io.on('connection', (socket) => {
 
   socket.on('join', ({ code, name, pid: playerId } = {}) => {
     const r = rooms.get(clean(code, 4).toUpperCase());
-    if (!r) return socket.emit('join_failed', { text: `No game with code "${clean(code, 4).toUpperCase()}".` });
+    if (!r) return socket.emit('join_failed', { key: 'noGame', vars: { code: clean(code, 4).toUpperCase() } });
     name = clean(name, 20);
-    if (!name && !r.players.has(playerId)) return fail('Enter your name first.');
+    if (!name && !r.players.has(playerId)) return fail('enterName');
     attach(r, playerId, name);
   });
 
@@ -275,7 +282,7 @@ io.on('connection', (socket) => {
   socket.on('reset_scores', () => {
     if (!isHost()) return;
     for (const p of room.players.values()) p.score = 0;
-    addLog(room, { type: 'system', text: 'Scores reset.' });
+    addLog(room, { type: 'system', key: 'scoresReset' });
     broadcast(room);
   });
 
@@ -285,11 +292,11 @@ io.on('connection', (socket) => {
     const card = room.round.cards.get(target);
     if (!card || target === pid || card.state !== 'playing') return;
     const next = drawCharacter(room);
-    if (!next) return fail('No more characters left for this round’s theme — try guessing anyway!');
+    if (!next) return fail('noMoreChars');
     card.charId = next.id;
     card.lastGuess = null;
     card.skips += 1;
-    addLog(room, { type: 'skip', text: `${me().name} didn't know ${room.players.get(target).name}'s character — swapped in a new one.` });
+    addLog(room, { type: 'skip', key: 'skipped', vars: { name: me().name, target: room.players.get(target).name } });
     broadcast(room);
   });
 
@@ -301,10 +308,10 @@ io.on('connection', (socket) => {
     card.guesses += 1;
     const ch = BY_ID.get(card.charId);
     if (ch && isCorrectGuess(text, ch)) {
-      solve(room, pid, 'guessed it');
+      solve(room, pid);
     } else {
       card.lastGuess = text;
-      addLog(room, { type: 'miss', text: `${me().name} guessed "${text}" — nope.` });
+      addLog(room, { type: 'miss', key: 'missed', vars: { name: me().name, guess: text } });
     }
     broadcast(room);
   });
@@ -314,7 +321,7 @@ io.on('connection', (socket) => {
     if (!room || room.phase !== 'round' || !me() || target === pid) return;
     const card = room.round.cards.get(target);
     if (!card || card.state !== 'playing' || !card.lastGuess) return;
-    solve(room, target, `got it ("${card.lastGuess}", accepted by ${me().name})`);
+    solve(room, target, me().name);
     broadcast(room);
   });
 
@@ -323,8 +330,7 @@ io.on('connection', (socket) => {
     const card = room.round.cards.get(pid);
     if (!card || card.state !== 'playing') return;
     card.state = 'gaveup';
-    const ch = BY_ID.get(card.charId);
-    addLog(room, { type: 'miss', text: `${me().name} gave up. They were ${ch ? ch.name : '???'}.` });
+    addLog(room, { type: 'miss', key: 'gaveUp', vars: { name: me().name, char: charName(card.charId) } });
     maybeFinish(room);
     broadcast(room);
   });
@@ -344,7 +350,7 @@ io.on('connection', (socket) => {
     for (const sid of p.sockets) io.to(sid).emit('kicked');
     room.players.delete(target);
     if (room.round) room.round.cards.delete(target);
-    addLog(room, { type: 'system', text: `${p.name} was removed.` });
+    addLog(room, { type: 'system', key: 'removed', vars: { name: p.name } });
     if (room.phase === 'round') maybeFinish(room);
     broadcast(room);
   });
@@ -354,7 +360,7 @@ io.on('connection', (socket) => {
     const p = me();
     room.players.delete(pid);
     if (room.round) room.round.cards.delete(pid);
-    addLog(room, { type: 'system', text: `${p.name} left.` });
+    addLog(room, { type: 'system', key: 'left', vars: { name: p.name } });
     if (room.hostPid === pid) {
       const next = activePlayers(room).find((x) => x.sockets.size) || activePlayers(room)[0];
       if (next) room.hostPid = next.pid;
@@ -378,7 +384,7 @@ io.on('connection', (socket) => {
         const host = r.players.get(r.hostPid);
         if (host && host.sockets.size) return;
         const next = activePlayers(r).find((x) => x.sockets.size);
-        if (next) { r.hostPid = next.pid; addLog(r, { type: 'system', text: `${next.name} is now the host.` }); broadcast(r); }
+        if (next) { r.hostPid = next.pid; addLog(r, { type: 'system', key: 'newHost', vars: { name: next.name } }); broadcast(r); }
       }, 30000);
     }
     broadcast(room);

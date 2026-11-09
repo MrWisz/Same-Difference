@@ -58,6 +58,19 @@ Giant Bomb (game characters, free key), Comic Vine (comics).
 > Pictures are hot-linked from Wikimedia/Fandom and many are non-free promotional art.
 > That's fine for a private game with friends. Check the licensing before you put this on a public or commercial site.
 
+## Languages (English / Español)
+
+Each player picks their own language with the selector at the top. It starts from the
+browser's language and is remembered on that device. Players in one game can use different languages.
+
+- UI text: `public/i18n.js` (one block per language).
+- Character names, franchises, traits and categories in Spanish: `data/characters.es.js`.
+  Spanish names (e.g. "Bob Esponja", "Arturito", "Homero") are accepted as correct
+  guesses in either language.
+- The server sends keys and `{ en, es }` labels, and each phone builds the text in its own language.
+  To add another language, add a block to `public/i18n.js` and a `data/characters.<lang>.js`, then
+  include it where `characters.js` builds the `{ en, es }` labels.
+
 ## Deploy for remote play
 
 Any Node host with WebSocket support works. Examples:
