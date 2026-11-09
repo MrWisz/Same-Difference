@@ -42,7 +42,7 @@ mystery that is revealed at the end.
 
 ## Characters & images
 
-- `data/characters.js` has about 345 characters and 52 traits. Each row looks like this:
+- `data/characters.js` has about 600 characters and 53 traits. Each row looks like this:
   `['Name', 'category', 'From', 'Wikipedia title', 'trait trait', 'alias|alias']`.
   Run `npm run check-data` to see how many characters each trait has.
 - Pictures are fetched automatically and cached in `data/image-cache.json`, in this order:
