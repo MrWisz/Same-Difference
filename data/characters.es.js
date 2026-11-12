@@ -171,8 +171,8 @@ const NAMES = {
   'Gomez Addams': 'Homero Addams|gomez addams|homero',
   'Uncle Fester': 'Tío Lucas|tio lucas|tio fester',
   'Master Roshi': 'Maestro Roshi|duende tortuga|maestro roshi',
-  'Majin Buu': 'Majin Buu|boo|buu',
-  'Jessie (Team Rocket)': 'Jessie (Equipo Rocket)|equipo rocket|jessie',
+  'Majin Buu': 'Majin Buu|buu',
+  'Jessie (Team Rocket)': 'Jessie (Equipo Rocket)|equipo rocket|jessie y james',
   'Shin-chan': 'Shin-chan|shin chan',
   'Chihiro': 'Chihiro|sen',
   'Speed Racer': 'Meteoro|speed racer',
@@ -204,6 +204,16 @@ const NAMES = {
   'Thomas the Tank Engine': 'Thomas la locomotora|tomas|thomas',
   'Bob the Builder': 'Bob el constructor|bob',
   'Duck Hunt Dog': 'Perro de Duck Hunt|duck hunt',
+  // More common Spanish names
+  'Hulk': 'Hulk|el increible hulk|la masa',
+  'Jon Snow': 'Jon Snow|jon nieve',
+  'Popeye': 'Popeye el marino|popeye',
+  'Frieza': 'Freezer|freeza|frieza',
+  'Skeletor': 'Skeletor|esqueletor',
+  'Groot': 'Groot|yo soy groot',
+  'E.T.': 'E.T.|et el extraterrestre|el extraterrestre',
+  'Jack Skellington': 'Jack Skellington|jack el rey calabaza|rey calabaza',
+  'Sonic the Hedgehog': 'Sonic|sonic el erizo',
 };
 
 const FROM = {

@@ -250,7 +250,7 @@ const RAW = [
   ['The Fonz', 'tv', 'Happy Days', 'Fonzie', 'catchphrase vehicle', 'fonzie|arthur fonzarelli'],
   ['Wednesday Addams', 'tv', 'Wednesday', 'Wednesday Addams', 'kid sidekick villain', 'wednesday'],
   ['Homelander', 'tv', 'The Boys', 'Homelander', 'cape villain blonde flies blue', ''],
-  ['Ted Lasso', 'tv', 'Ted Lasso', 'Ted Lasso (character)', 'mustache catchphrase food', 'ted'],
+  ['Ted Lasso', 'tv', 'Ted Lasso', 'Ted Lasso (character)', 'mustache catchphrase food', 'lasso|coach lasso'],
   ['Saul Goodman', 'tv', 'Better Call Saul', 'Saul Goodman', 'catchphrase secret bald', 'jimmy mcgill|saul'],
 
   // ───────────────────────── ANIME ─────────────────────────
@@ -643,7 +643,7 @@ const RAW = [
   ['Mercy', 'game', 'Overwatch', 'Mercy (Overwatch)', 'wings blonde flies', 'angela ziegler'],
   ['Cuphead', 'game', 'Cuphead', 'Cuphead', 'gloves', '', { imgFrom: 'fandom', fandom: 'cuphead', fandomTitle: 'Cuphead (character)' }],
   ['Sans', 'game', 'Undertale', 'Sans (Undertale)', 'undead catchphrase food', ''],
-  ['Atreus', 'game', 'God of War', 'Atreus (God of War)', 'bow kid', 'boy|loki', { imgFrom: 'fandom', fandom: 'godofwar', fandomTitle: 'Atreus' }],
+  ['Atreus', 'game', 'God of War', 'Atreus (God of War)', 'bow kid', 'boy', { imgFrom: 'fandom', fandom: 'godofwar', fandomTitle: 'Atreus' }],
   ['Trevor Philips', 'game', 'Grand Theft Auto', 'Trevor Philips', 'villain bald gun', 'trevor'],
   ['CJ', 'game', 'Grand Theft Auto', 'Carl Johnson (Grand Theft Auto)', 'gun catchphrase vehicle', 'carl johnson'],
   ['Sora', 'game', 'Kingdom Hearts', 'Sora (Kingdom Hearts)', 'spiky sword kid', ''],
